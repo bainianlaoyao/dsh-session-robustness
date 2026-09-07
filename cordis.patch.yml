@@ -1,0 +1,13 @@
+# dsh-session-robustness bundle patch
+#
+# Install:
+#   dsh plugin --profile web add dsh-session-robustness
+#
+# Host composition already mounts @deepseek-ai/dsh-llm-retry (normal mode,
+# default maxRetries=5). This row registers AFTER that executor so it only
+# sees failures the official budget already delegated — then keeps retrying
+# transient API errors (TIMEOUT / TRANSPORT / RATE_LIMIT / SERVER / …)
+# until success, user cancel, or pause.
+- insert:
+    - id: session-robustness
+      name: 'dsh-session-robustness'

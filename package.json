@@ -1,0 +1,66 @@
+{
+  "name": "dsh-session-robustness",
+  "version": "0.1.4",
+  "description": "工程级会话鲁棒：官方有限次 API 重试耗尽后，对超时/传输/限流等瞬时失败继续重试直到成功或取消，会话不因瞬时 API 故障中断。",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/bainianlaoyao/dsh-session-robustness#readme",
+  "bugs": {
+    "url": "https://github.com/bainianlaoyao/dsh-session-robustness/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bainianlaoyao/dsh-session-robustness"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/smoke-static.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "*"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "retry",
+    "timeout",
+    "robustness",
+    "session"
+  ],
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@deepseek-ai/schemastery": "^3.18.2"
+  }
+}
