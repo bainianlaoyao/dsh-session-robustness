@@ -108,8 +108,8 @@ const {
   resolveConfig, isRetryable, isRetryableFailure, isNetworkCode, computeDelay,
 } = await import('../lib/index.js');
 
-check('exports name/version/inject', name === 'dsh-session-robustness' && VERSION === '0.1.4' && inject.includes('webServer'), `${name}@${VERSION} inject=${JSON.stringify(inject)}`);
-check('default retryable includes TIMEOUT and STREAM_CLOSED', DEFAULT_RETRYABLE.includes('TIMEOUT') && DEFAULT_RETRYABLE.includes('TRANSPORT') && DEFAULT_RETRYABLE.includes('RATE_LIMIT') && DEFAULT_RETRYABLE.includes('STREAM_CLOSED') && DEFAULT_RETRYABLE.includes('MALFORMED_RESPONSE'), JSON.stringify(DEFAULT_RETRYABLE));
+check('exports name/version/inject', name === 'dsh-session-robustness' && VERSION === '0.1.5' && inject.includes('webServer'), `${name}@${VERSION} inject=${JSON.stringify(inject)}`);
+check('default retryable includes TIMEOUT and STREAM_CLOSED', DEFAULT_RETRYABLE.includes('TIMEOUT') && DEFAULT_RETRYABLE.includes('TRANSPORT') && DEFAULT_RETRYABLE.includes('RATE_LIMIT') && DEFAULT_RETRYABLE.includes('STREAM_CLOSED') && DEFAULT_RETRYABLE.includes('MALFORMED_RESPONSE') && DEFAULT_RETRYABLE.includes('STREAM_READ_ERROR'), JSON.stringify(DEFAULT_RETRYABLE));
 check('never-retry includes AUTH/QUOTA/CONTEXT/ABORTED', NEVER_RETRY.includes('AUTH') && NEVER_RETRY.includes('QUOTA') && NEVER_RETRY.includes('CONTEXT_WINDOW_EXCEEDED') && NEVER_RETRY.includes('NO_ADAPTER') && NEVER_RETRY.includes('ABORTED'), JSON.stringify(NEVER_RETRY));
 check('NETWORK_CODES covers stream drop codes', NETWORK_CODES.includes('STREAM_CLOSED') && NETWORK_CODES.includes('MALFORMED_RESPONSE') && NETWORK_CODES.includes('STREAM'), JSON.stringify(NETWORK_CODES));
 
@@ -124,6 +124,11 @@ check('PI_AI_ERROR without transient text is not retryable', isRetryableFailure(
 check('AUTH still not retryable even with overloaded text', isRetryableFailure(cfg, { code: 'AUTH', message: 'overloaded, try again later' }) === false);
 check('quota text on catch-all is not retryable', isRetryableFailure(cfg, { code: 'UNKNOWN', message: 'insufficient_quota, try again later' }) === false);
 check('STREAM_CLOSED without keyword is network retry', isRetryableFailure(cfg, { code: 'STREAM_CLOSED', message: 'SSE stream ended without [DONE]' }) === true && isNetworkCode('STREAM_CLOSED') === true);
+check('stream_read_error as adapter-native code is network retry', isRetryableFailure(cfg, { code: 'stream_read_error', message: 'stream_read_error' }) === true && isNetworkCode('stream_read_error') === true);
+check('STREAM_READ_ERROR uppercase is network retry', isRetryableFailure(cfg, { code: 'STREAM_READ_ERROR', message: '' }) === true);
+check('PI_AI_ERROR Upstream request failed is retryable', isRetryableFailure(cfg, { code: 'PI_AI_ERROR', message: 'Upstream request failed' }) === true);
+check('Upstream request failed as code is retryable', isRetryableFailure(cfg, { code: 'Upstream request failed', message: 'Upstream request failed' }) === true);
+check('empty code with Upstream request failed message is retryable', isRetryableFailure(cfg, { code: '', message: 'Upstream request failed' }) === true);
 check('MALFORMED_RESPONSE is network retry', isRetryableFailure(cfg, { code: 'MALFORMED_RESPONSE', message: 'malformed SSE payload: {' }) === true);
 check('STREAM default text is network retry', isRetryableFailure(cfg, { code: 'STREAM', message: 'model response failed' }) === true);
 check('HTTP_408 is network retry', isRetryableFailure(cfg, { code: 'HTTP_408', message: 'request timeout' }) === true);
@@ -232,6 +237,20 @@ const http400Decision = await waterfall('agent/request-error', {
   signal: abort.signal,
 }, () => Promise.resolve({ delegated: true }));
 check('HTTP_400 delegates', http400Decision && http400Decision.delegated === true, JSON.stringify(http400Decision));
+
+const streamReadDecision = await waterfall('agent/request-error', {
+  agent, turn: 1, step: 11, provider: 'aiwnawugrok',
+  failure: { code: 'stream_read_error', message: 'stream_read_error' },
+  signal: abort.signal,
+}, () => Promise.resolve({ delegated: true }));
+check('stream_read_error → retry', streamReadDecision && streamReadDecision.kind === 'retry', JSON.stringify(streamReadDecision));
+
+const upstreamDecision = await waterfall('agent/request-error', {
+  agent, turn: 1, step: 12, provider: 'aiwnawugrok',
+  failure: { code: 'PI_AI_ERROR', message: 'Upstream request failed' },
+  signal: abort.signal,
+}, () => Promise.resolve({ delegated: true }));
+check('Upstream request failed → retry', upstreamDecision && upstreamDecision.kind === 'retry', JSON.stringify(upstreamDecision));
 
 const pause = await post(route, '/session-robustness/api/pause', {});
 check('pause persists', pause.status === 200 && pause.body.config.paused === true, JSON.stringify(pause.body.config));

@@ -35,7 +35,7 @@ adapter 流失败
 
 永不重试：`AUTH`、`MISSING_CREDENTIAL`、`INVALID_CREDENTIAL`、`QUOTA`、`CONTEXT_WINDOW_EXCEEDED`、`NO_ADAPTER`、`ABORTED`。上下文溢出仍交给官方 compaction。用户 Stop 不会被重试。
 
-0.1.3 起，能进 `agent/request-error` 的**网络失败一律无条件重试**，不再依赖文案：SSE 对端关闭（`STREAM_CLOSED`，例如 `ended without [DONE]`）、半截 JSON（`MALFORMED_RESPONSE`）、Responses 未识别流失败（`STREAM`）、HTTP 408/409/425/429/499/5xx。`PI_AI_ERROR` / `UNKNOWN` 仍用文案启发式（Codex overloaded 等）。`HTTP_400` / `INVALID_REQUEST` / `CONTENT_FILTER` 仍不重试。
+0.1.3 起，能进 `agent/request-error` 的**网络失败一律无条件重试**，不再依赖文案：SSE 对端关闭（`STREAM_CLOSED`，例如 `ended without [DONE]`）、半截 JSON（`MALFORMED_RESPONSE`）、Responses 未识别流失败（`STREAM`）、HTTP 408/409/425/429/499/5xx。0.1.5 起还包括适配器原样透传的 `stream_read_error`，以及网关文案 `Upstream request failed`（pi-ai 常落成 `PI_AI_ERROR`）。`PI_AI_ERROR` / `UNKNOWN` / 未知码仍用文案启发式（Codex overloaded、Upstream request failed 等）。`HTTP_400` / `INVALID_REQUEST` / `CONTENT_FILTER` 仍不重试。
 
 进不了 waterfall 的失败本插件也接不到：`prepareCall` 抛错、标题/摘要走的 `ctx.llm.stream()`、工具调用失败。
 

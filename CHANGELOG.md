@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Retry adapter-native `stream_read_error` / `STREAM_READ_ERROR` (shown as 本轮运行失败 `stream_read_error`).
+- Retry catch-all `Upstream request failed` (gateway / proxy wording that pi-ai maps to `PI_AI_ERROR`).
+- Treat unknown adapter codes as catch-all when the message or the code itself looks like a stream / upstream failure.
+
 ## 0.1.4
 
 - Settings page: status card, official-vs-takeover steps, coverage columns, live takeover list.

@@ -12,7 +12,7 @@ This is not a client-side "continue" after the turn has already ended, and it do
 
 Official `mode: always` retries **every** failure including AUTH/QUOTA. This plugin does not: permanent errors cannot succeed by waiting.
 
-From 0.1.3 every capturable network failure that reaches `agent/request-error` is retried unconditionally: `STREAM_CLOSED`, `MALFORMED_RESPONSE`, `STREAM`, `HTTP_408` / `409` / `425` / `429` / `499` / `5xx`. Catch-all `PI_AI_ERROR` / `UNKNOWN` still use the message heuristic.
+From 0.1.3 every capturable network failure that reaches `agent/request-error` is retried unconditionally: `STREAM_CLOSED`, `MALFORMED_RESPONSE`, `STREAM`, `HTTP_408` / `409` / `425` / `429` / `499` / `5xx`. From 0.1.5 that also includes adapter-native `stream_read_error` and gateway wording `Upstream request failed` (usually classified as catch-all `PI_AI_ERROR`). Catch-all `PI_AI_ERROR` / `UNKNOWN` / unknown adapter codes still use the message heuristic.
 
 OpenAI Codex overloaded is a special case: pi-ai classifies
 
