@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bainianlaoyao/dsh-session-robustness"
+    "url": "git+https://github.com/bainianlaoyao/dsh-session-robustness.git"
   },
   "publishConfig": {
     "access": "public"
