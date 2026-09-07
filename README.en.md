@@ -24,6 +24,8 @@ Never retried: `AUTH`, `MISSING_CREDENTIAL`, `INVALID_CREDENTIAL`, `QUOTA`, `CON
 
 Failures that never enter `agent/request-error` are out of scope: throws from `prepareCall`, title/summary `ctx.llm.stream()`, and tool failures. In-process subagents share the host waterfall; ACP / out-of-process subagents do not.
 
+From 0.1.6, **openai-codex only**: a failed stream drops that session's WebSocket continuation (`previous_response_id`). pi-ai `websocket-cached` / `auto` can keep a failed stream's `response.id` as the next-request anchor, so later retries stay stuck even after the API is healthy. The drop also runs during the official 5 retries (`llm/stream` is observed, not retried in-stream). Successful Codex streams keep their continuation. Server-side prompt cache and the DSH session log are untouched. Other providers are not closed.
+
 ## Install
 
 ```bash

@@ -106,9 +106,10 @@ const {
   apply, name, VERSION, inject,
   DEFAULT_RETRYABLE, NEVER_RETRY, NETWORK_CODES,
   resolveConfig, isRetryable, isRetryableFailure, isNetworkCode, computeDelay,
+  dropCodexContinuation, wrapCodexStream, isCodexProvider,
 } = await import('../lib/index.js');
 
-check('exports name/version/inject', name === 'dsh-session-robustness' && VERSION === '0.1.5' && inject.includes('webServer'), `${name}@${VERSION} inject=${JSON.stringify(inject)}`);
+check('exports name/version/inject', name === 'dsh-session-robustness' && VERSION === '0.1.6' && inject.includes('webServer'), `${name}@${VERSION} inject=${JSON.stringify(inject)}`);
 check('default retryable includes TIMEOUT and STREAM_CLOSED', DEFAULT_RETRYABLE.includes('TIMEOUT') && DEFAULT_RETRYABLE.includes('TRANSPORT') && DEFAULT_RETRYABLE.includes('RATE_LIMIT') && DEFAULT_RETRYABLE.includes('STREAM_CLOSED') && DEFAULT_RETRYABLE.includes('MALFORMED_RESPONSE') && DEFAULT_RETRYABLE.includes('STREAM_READ_ERROR'), JSON.stringify(DEFAULT_RETRYABLE));
 check('never-retry includes AUTH/QUOTA/CONTEXT/ABORTED', NEVER_RETRY.includes('AUTH') && NEVER_RETRY.includes('QUOTA') && NEVER_RETRY.includes('CONTEXT_WINDOW_EXCEEDED') && NEVER_RETRY.includes('NO_ADAPTER') && NEVER_RETRY.includes('ABORTED'), JSON.stringify(NEVER_RETRY));
 check('NETWORK_CODES covers stream drop codes', NETWORK_CODES.includes('STREAM_CLOSED') && NETWORK_CODES.includes('MALFORMED_RESPONSE') && NETWORK_CODES.includes('STREAM'), JSON.stringify(NETWORK_CODES));
@@ -129,6 +130,47 @@ check('STREAM_READ_ERROR uppercase is network retry', isRetryableFailure(cfg, { 
 check('PI_AI_ERROR Upstream request failed is retryable', isRetryableFailure(cfg, { code: 'PI_AI_ERROR', message: 'Upstream request failed' }) === true);
 check('Upstream request failed as code is retryable', isRetryableFailure(cfg, { code: 'Upstream request failed', message: 'Upstream request failed' }) === true);
 check('empty code with Upstream request failed message is retryable', isRetryableFailure(cfg, { code: '', message: 'Upstream request failed' }) === true);
+{
+  const closed = [];
+  const drop = await dropCodexContinuation('sess-codex', {
+    close: (id) => { closed.push(id); },
+    via: 'test',
+  });
+  check('dropCodexContinuation closes injected websocket cache', drop.dropped === true && closed[0] === 'sess-codex', JSON.stringify({ drop, closed }));
+  const missing = await dropCodexContinuation('');
+  check('dropCodexContinuation no-session is a no-op', missing.dropped === false && missing.reason === 'no-session', JSON.stringify(missing));
+}
+check('isCodexProvider matches openai-codex only', isCodexProvider('openai-codex') === true && isCodexProvider('openai-codex/gpt') === true && isCodexProvider('aiwnawugrok') === false && isCodexProvider('openai') === false);
+{
+  const closed = [];
+  const closer = { close: (id) => { closed.push(id); }, via: 'test' };
+  async function* okStream() {
+    yield { type: 'delta', text: 'hi' };
+    yield { type: 'finish', reason: { kind: 'stop' } };
+  }
+  const kept = [];
+  for await (const chunk of wrapCodexStream(okStream(), 'sess-ok', closer)) kept.push(chunk);
+  check('successful Codex stream keeps continuation', closed.length === 0 && kept[1].reason.kind === 'stop', JSON.stringify({ closed, kinds: kept.map((c) => c.type) }));
+
+  async function* failStream() {
+    yield { type: 'start' };
+    yield { type: 'finish', reason: { kind: 'error', failure: { code: 'TIMEOUT' } } };
+  }
+  for await (const _chunk of wrapCodexStream(failStream(), 'sess-fail', closer)) { /* drain */ }
+  check('failed Codex finish drops continuation', closed.length === 1 && closed[0] === 'sess-fail', JSON.stringify(closed));
+
+  async function* boomStream() {
+    yield { type: 'start' };
+    throw new Error('websocket reset');
+  }
+  let threw = false;
+  try {
+    for await (const _chunk of wrapCodexStream(boomStream(), 'sess-boom', closer)) { /* drain */ }
+  } catch {
+    threw = true;
+  }
+  check('thrown Codex stream drops continuation and rethrows', threw === true && closed.includes('sess-boom'), JSON.stringify({ threw, closed }));
+}
 check('MALFORMED_RESPONSE is network retry', isRetryableFailure(cfg, { code: 'MALFORMED_RESPONSE', message: 'malformed SSE payload: {' }) === true);
 check('STREAM default text is network retry', isRetryableFailure(cfg, { code: 'STREAM', message: 'model response failed' }) === true);
 check('HTTP_408 is network retry', isRetryableFailure(cfg, { code: 'HTTP_408', message: 'request timeout' }) === true);
@@ -146,10 +188,17 @@ check('backoff exponential then cap', d1 === 1000 && d2 === 2000 && d3 === 4000,
 const after = computeDelay({ initialDelayMs: 1000, maxDelayMs: 30000, jitterRatio: 0 }, 1, { providerRetryAfterMs: 2500 }, () => 0.5);
 check('honors Retry-After inside cap', after === 2500, String(after));
 
-await apply(makeCtx());
+const closedSessions = [];
+await apply(makeCtx(), {
+  codexCloser: {
+    close: (id) => { closedSessions.push(id); },
+    via: 'test',
+  },
+});
 check('settings ns registered', settingsState.ns === 'session-robustness', String(settingsState.ns));
 check('api route mounted', routes.length === 1 && routes[0].path === '/session-robustness/api', JSON.stringify(routes.map((r) => r.path)));
 check('listens agent/request-error', (listeners.get('agent/request-error') || []).length === 1);
+check('listens llm/stream', (listeners.get('llm/stream') || []).length === 1);
 
 const route = routes[0];
 const st = await post(route, '/session-robustness/api/status', {});
@@ -170,6 +219,7 @@ const t0 = Date.now();
 const timeoutDecision = await waterfall('agent/request-error', timeoutPayload, () => Promise.resolve(undefined));
 const elapsed = Date.now() - t0;
 check('TIMEOUT after official budget → retry', timeoutDecision && timeoutDecision.kind === 'retry', JSON.stringify(timeoutDecision));
+check('non-codex TIMEOUT retry does not drop Codex cache', closedSessions.length === 0, JSON.stringify(closedSessions));
 check('TIMEOUT waited the configured delay', elapsed >= 20 && elapsed < 800, 'elapsed=' + elapsed);
 
 const live = await post(route, '/session-robustness/api/status', {});
@@ -202,6 +252,7 @@ const overloadedDecision = await waterfall('agent/request-error', {
   signal: abort.signal,
 }, () => Promise.resolve({ delegated: true }));
 check('Codex overloaded PI_AI_ERROR → retry', overloadedDecision && overloadedDecision.kind === 'retry', JSON.stringify(overloadedDecision));
+check('Codex overloaded retry drops websocket continuation', closedSessions.includes('sess-1'), JSON.stringify(closedSessions));
 
 const catchallPermanent = await waterfall('agent/request-error', {
   agent, turn: 1, step: 6, provider: 'openai-codex',
@@ -251,6 +302,29 @@ const upstreamDecision = await waterfall('agent/request-error', {
   signal: abort.signal,
 }, () => Promise.resolve({ delegated: true }));
 check('Upstream request failed → retry', upstreamDecision && upstreamDecision.kind === 'retry', JSON.stringify(upstreamDecision));
+
+{
+  const before = closedSessions.length;
+  async function* okCodex() {
+    yield { type: 'finish', reason: { kind: 'stop' } };
+  }
+  for await (const _chunk of waterfall('llm/stream', { provider: 'openai-codex', sessionId: 'sess-ok-stream' }, () => okCodex())) { /* drain */ }
+  check('successful openai-codex llm/stream keeps continuation', closedSessions.length === before, JSON.stringify(closedSessions.slice(before)));
+
+  async function* failCodex() {
+    yield { type: 'start' };
+    yield { type: 'finish', reason: { kind: 'error', failure: { code: 'STREAM_CLOSED' } } };
+  }
+  for await (const _chunk of waterfall('llm/stream', { provider: 'openai-codex', sessionId: 'sess-stream-fail' }, () => failCodex())) { /* drain */ }
+  check('failed openai-codex llm/stream drops continuation', closedSessions.includes('sess-stream-fail'), JSON.stringify(closedSessions));
+
+  async function* otherProvider() {
+    yield { type: 'finish', reason: { kind: 'error', failure: { code: 'TIMEOUT' } } };
+  }
+  const beforeOther = closedSessions.length;
+  for await (const _chunk of waterfall('llm/stream', { provider: 'aiwnawugrok', sessionId: 'sess-other' }, () => otherProvider())) { /* drain */ }
+  check('non-codex llm/stream does not drop continuation', closedSessions.length === beforeOther, JSON.stringify(closedSessions.slice(beforeOther)));
+}
 
 const pause = await post(route, '/session-robustness/api/pause', {});
 check('pause persists', pause.status === 200 && pause.body.config.paused === true, JSON.stringify(pause.body.config));

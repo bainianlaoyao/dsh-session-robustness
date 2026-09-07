@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- openai-codex only: after a failed stream, drop the pi-ai WebSocket continuation (`previous_response_id`) so the next attempt is a full-body request. A failed stream can still mint a `response.id`; retrying against that incomplete id never recovers even after the API is healthy.
+- The drop also runs for the official 5 retries: `llm/stream` is observed (chunks forwarded unchanged) and the cache is cleared on error/abort/throw. Successful Codex streams keep their continuation. Other providers are untouched.
+
 ## 0.1.5
 
 - Retry adapter-native `stream_read_error` / `STREAM_READ_ERROR` (shown as 本轮运行失败 `stream_read_error`).

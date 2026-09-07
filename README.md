@@ -39,6 +39,8 @@ adapter 流失败
 
 进不了 waterfall 的失败本插件也接不到：`prepareCall` 抛错、标题/摘要走的 `ctx.llm.stream()`、工具调用失败。
 
+0.1.6 起，**只对 openai-codex**：流失败后丢掉该会话的 WebSocket 续写（`previous_response_id`）。pi-ai 的 `websocket-cached` / `auto` 会把失败流上的 `response.id` 当成续写锚点，API 已经恢复也会一直钉在那个不完整的响应上。官方那 5 次重试也会清（只观察 `llm/stream`，不在流内重试）。成功回合的续写保留；服务端 prompt cache 和会话历史不受影响。其它 provider 不动。
+
 ### Codex overloaded 为什么也要覆盖
 
 `openai-codex` 走 pi-ai。上游 SSE 事件 `error` / `response.failed` 会变成：
