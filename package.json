@@ -25,7 +25,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/smoke-static.mjs"
+    "test": "node test/smoke-static.mjs",
+    "pack:check": "node scripts/check-pack.mjs"
   },
   "dsh": {
     "bundle": {
