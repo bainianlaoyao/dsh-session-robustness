@@ -84,6 +84,22 @@ The `session-robustness` block in `$DSH_HOME/settings.yaml` stays; delete it man
 npm test   # static smoke: waterfall takeover, never-retry codes, HTTP JSON bridge
 ```
 
+## Related plugins
+
+Other dsh plugins by the same author, all listed in the
+[dsh plugin market](https://awesome-dsh-plugin.com/):
+
+- [`dsh-codex-mode`](https://github.com/bainianlaoyao/dsh-codex-harness) — a Codex-shaped
+  coding mode for GPT-family models: `exec_command` / `write_stdin` / `apply_patch` /
+  `view_image`, both OpenAI routes (Chat Completions and Responses), and graphical
+  subagent types.
+- [`dsh-llm-api-pool`](https://github.com/bainianlaoyao/dsh-llm-api-pool) — pool several
+  OpenAI-compatible API keys and hot-switch by remaining balance.
+- [`dsh-bash-on-windows`](https://github.com/bainianlaoyao/bash-on-windows) — make Git
+  Bash the only, honestly named terminal tool on Windows.
+- [`dsh-easy-archive`](https://github.com/bainianlaoyao/easy-archive) — two-step inline
+  archiving from the workspace sidebar.
+
 ## License
 
 MIT

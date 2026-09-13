@@ -113,6 +113,15 @@ dsh plugin --profile web remove dsh-session-robustness
 npm test   # 静态冒烟：waterfall 接管、永不重试码、HTTP JSON 桥
 ```
 
+## 相关插件
+
+同一作者的其它 dsh 插件，均已收录于 [dsh 插件市场](https://awesome-dsh-plugin.com/)：
+
+- [`dsh-codex-mode`](https://github.com/bainianlaoyao/dsh-codex-harness) —— 面向 GPT 系模型的 Codex 形状编码预设：`exec_command` / `write_stdin` / `apply_patch` / `view_image`、OpenAI Chat Completions 与 Responses 两条路由，外加图形化子代理类型。
+- [`dsh-llm-api-pool`](https://github.com/bainianlaoyao/dsh-llm-api-pool) —— 聚合多个 OpenAI 兼容 API key，按余额热切换。
+- [`dsh-bash-on-windows`](https://github.com/bainianlaoyao/bash-on-windows) —— 让 Git Bash 成为 Windows 上唯一且名副其实的终端工具。
+- [`dsh-easy-archive`](https://github.com/bainianlaoyao/easy-archive) —— 工作区侧边栏行内两步归档会话。
+
 ## License
 
 MIT
